@@ -1,6 +1,6 @@
 import { libsql } from "@lucia-auth/adapter-sqlite";
-import { github } from "@lucia-auth/oauth/providers";
-import { lucia, Middleware } from "lucia";
+import { google } from "@lucia-auth/oauth/providers";
+import { lucia, type Middleware } from "lucia";
 import { config } from "../config";
 import { client } from "../db";
 
@@ -11,6 +11,7 @@ const envAliasMap = {
 
 const envAlias = envAliasMap[config.env.NODE_ENV];
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type ElysiaContext = {
   request: Request;
   set: {
@@ -49,14 +50,18 @@ export const auth = lucia({
   }),
   getUserAttributes: (data) => {
     return {
-      handle: data.handle,
+      name: data.name,
+      picture: data.picture,
+      email: data.email,
+      id: data.id,
     };
   },
 });
 
 export type Auth = typeof auth;
 
-export const githubAuth = github(auth, {
-  clientId: config.env.GITHUB_CLIENT_ID,
-  clientSecret: config.env.GITHUB_CLIENT_SECRET,
+export const googleAuth = google(auth, {
+  clientId: config.env.GOOGLE_CLIENT_ID,
+  clientSecret: config.env.GOOGLE_CLIENT_SECRET,
+  redirectUri: `${config.env.HOST_URL}/api/auth/google/callback`,
 });

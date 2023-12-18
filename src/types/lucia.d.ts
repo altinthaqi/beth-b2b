@@ -1,8 +1,12 @@
 /// <reference types="lucia" />
 declare namespace Lucia {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   type Auth = import("../auth/index").Auth;
-  type DatabaseUserAttributes = {
-    handle: string;
-  };
-  type DatabaseSessionAttributes = {};
+  interface DatabaseUserAttributes {
+    name: string;
+    picture: string;
+    email?: string | null;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-interface
+  interface DatabaseSessionAttributes {}
 }
