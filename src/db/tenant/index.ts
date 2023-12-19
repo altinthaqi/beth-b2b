@@ -1,27 +1,72 @@
-import { createClient, type Config } from "@libsql/client";
+import { unlinkSync } from "fs";
+import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
-import { config } from "../../config";
 import * as schema from "./schema";
 
-const { DATABASE_CONNECTION_TYPE } = config.env;
+export function getTenantDb({
+  dbName,
+  authToken,
+}: {
+  dbName: string;
+  authToken: string;
+}) {
+  const fullUrl = `libsql://${dbName}-altinthaqi.turso.io`;
 
-const options = {
-  local: { url: "file:local.sqlite" },
-  remote: {
-    url: config.env.DATABASE_URL,
-    authToken: config.env.DATABASE_AUTH_TOKEN!,
-  },
-  "local-replica": {
-    url: "file:local.sqlite",
-    syncUrl: config.env.DATABASE_URL,
-    authToken: config.env.DATABASE_AUTH_TOKEN!,
-  },
-} satisfies Record<typeof DATABASE_CONNECTION_TYPE, Config>;
+  const tenantClient = createClient({
+    url: fullUrl,
+    authToken,
+  });
 
-export const client = createClient(options[DATABASE_CONNECTION_TYPE]);
+  const tenantDb = drizzle(tenantClient, { schema, logger: true });
 
-if (config.env.DATABASE_CONNECTION_TYPE === "local-replica") {
-  await client.sync();
+  return {
+    tenantClient,
+    tenantDb,
+  };
 }
 
-export const db = drizzle(client, { schema, logger: true });
+export async function pushToTenantDb({
+  dbName,
+  authToken,
+  input,
+}: {
+  dbName: string;
+  authToken: string;
+  input?: boolean;
+}) {
+  const tempConfigPath = "./src/db/tenant/drizzle.config.ts";
+
+  const configText = `
+  export default {
+    schema: "./src/db/tenant/schema/index.ts",
+    driver: "turso",
+    dbCredentials:{
+      url: "libsql://${dbName}-altinthaqi.turso.io",
+      authToken: "${authToken}",
+    },
+    },
+    tablesFilter: ["!libsql_wasm_func_table"],
+  } satisfies Config;
+  `;
+
+  await Bun.write(tempConfigPath, configText);
+
+  return new Promise((resolve, reject) => {
+    Bun.spawn(
+      ["bunx", "drizzle-kit", "push-sqlite", `--config=${tempConfigPath}`],
+      {
+        stdiout: input ? "inherit" : undefined,
+        stdin: input ? "inherit" : undefined,
+        onExit(_, code, __, error) {
+          unlinkSync(tempConfigPath);
+          if (code === 0) {
+            resolve(void 0);
+          } else {
+            console.error("error pushing to tenant db");
+            reject(error);
+          }
+        },
+      },
+    );
+  });
+}
