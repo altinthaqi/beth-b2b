@@ -6,7 +6,7 @@ import { Elysia } from "elysia";
 import pretty from "pino-pretty";
 import { auth } from "../auth";
 import { config } from "../config";
-import { client, db } from "../db";
+import { db } from "../db/primary";
 
 const stream = pretty({
   colorize: true,
@@ -26,6 +26,15 @@ export const ctx = new Elysia({
   .decorate("db", db)
   .decorate("config", config)
   .decorate("auth", auth)
+  .derive(async (ctx) => {
+    const authRequest = ctx.auth.handleRequest(ctx);
+
+    const session = await authRequest.validate();
+
+    console.log(session);
+
+    return { session };
+  })
   .use(bethStack())
   .use(logger(loggerConfig))
   .use(
@@ -41,11 +50,11 @@ export const ctx = new Elysia({
           name: "heartbeat",
           pattern: "*/2 * * * * *",
           run() {
-            const now = performance.now();
-            console.log("Syncing database...");
-            void client.sync().then(() => {
-              console.log(`Database synced in ${performance.now() - now}ms`);
-            });
+            // const now = performance.now();
+            // console.log("Syncing database...");
+            // void client.sync().then(() => {
+            //   console.log(`Database synced in ${performance.now() - now}ms`);
+            // });
           },
         })
       : (a) => a,
