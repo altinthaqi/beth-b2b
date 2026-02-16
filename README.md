@@ -2,7 +2,7 @@
 ## To open an issue: https://github.com/ethanniser/the-beth-stack
 ## To discuss: https://discord.gg/Z3yUtMfkwa
 
-### To run locally:
+### To run locallyy:
 
 1. `bun install`
 2. create a new turso database with `turso db create <name>`
